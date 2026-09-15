@@ -41,7 +41,6 @@ local function createIcon(parent, iconName)
 
 	local iconImage = nil
 	local getSuccess = pcall(function()
-		-- Метод GetIcon или CreateIcon в зависимости от API библиотеки
 		if typeof(Icons.GetIcon) == "function" then
 			iconImage = Icons.GetIcon(iconName)
 		elseif typeof(Icons.CreateIcon) == "function" then
@@ -56,7 +55,6 @@ local function createIcon(parent, iconName)
 		iconLabel.Position = UDim2.new(0, 10, 0.5, -9)
 		iconLabel.BackgroundTransparency = 1
 		
-		-- Если библиотека возвращает сразу словарь с данными ассета
 		if typeof(iconImage) == "table" then
 			iconLabel.Image = iconImage.Image or iconImage.Texture or ""
 			iconLabel.ImageRectOffset = iconImage.ImageRectOffset or Vector2.new(0, 0)
@@ -83,15 +81,25 @@ function AtheriumGUI.CreateWindow(titleText)
 	screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 	local mainFrame = Instance.new("Frame")
+	mainFrame.Name = "MainFrame"
 	mainFrame.Size = UDim2.new(0, 480, 0, 340)
 	mainFrame.Position = UDim2.new(0.5, -240, 0.5, -170)
 	mainFrame.BackgroundColor3 = THEME.Background
+	mainFrame.BorderSizePixel = 0
+	mainFrame.ClipsDescendants = true
 	mainFrame.Parent = screenGui
 	addCorner(mainFrame, 12)
 
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(50, 50, 60)
+	stroke.Thickness = 1.5
+	stroke.Parent = mainFrame
+
 	local header = Instance.new("Frame")
+	header.Name = "Header"
 	header.Size = UDim2.new(1, 0, 0, 42)
 	header.BackgroundColor3 = THEME.Header
+	header.BorderSizePixel = 0
 	header.Parent = mainFrame
 	addCorner(header, 12)
 
@@ -107,6 +115,7 @@ function AtheriumGUI.CreateWindow(titleText)
 	title.Parent = header
 
 	local container = Instance.new("ScrollingFrame")
+	container.Name = "Container"
 	container.Size = UDim2.new(1, -20, 1, -52)
 	container.Position = UDim2.new(0, 10, 0, 47)
 	container.BackgroundTransparency = 1
@@ -117,16 +126,46 @@ function AtheriumGUI.CreateWindow(titleText)
 
 	local listLayout = Instance.new("UIListLayout")
 	listLayout.Padding = UDim.new(0, 8)
+	listLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	listLayout.Parent = container
+
+	local padding = Instance.new("UIPadding")
+	padding.PaddingTop = UDim.new(0, 4)
+	padding.PaddingBottom = UDim.new(0, 4)
+	padding.Parent = container
 
 	listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 		container.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 10)
+	end)
+
+	-- Логика перетаскивания (Drag)
+	local dragging, dragStart, startPos
+	header.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = mainFrame.Position
+		end
+	end)
+
+	header.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = false
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			local delta = input.Position - dragStart
+			mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		end
 	end)
 
 	self.Container = container
 	return self
 end
 
+-- Кнопка
 function AtheriumGUI:AddButton(text, iconName, callback)
 	if type(iconName) == "function" then
 		callback = iconName
@@ -154,8 +193,70 @@ function AtheriumGUI:AddButton(text, iconName, callback)
 	label.BackgroundTransparency = 1
 	label.Parent = button
 
+	button.MouseEnter:Connect(function()
+		TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = THEME.ButtonHover}):Play()
+	end)
+	button.MouseLeave:Connect(function()
+		TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = THEME.Button}):Play()
+	end)
 	button.MouseButton1Click:Connect(function()
 		if callback then callback() end
+	end)
+end
+
+-- Тогл (Переключатель)
+function AtheriumGUI:AddToggle(text, iconName, defaultState, callback)
+	if type(iconName) == "boolean" then
+		callback = defaultState
+		defaultState = iconName
+		iconName = nil
+	end
+
+	local state = defaultState or false
+	local toggleFrame = Instance.new("Frame")
+	toggleFrame.Size = UDim2.new(1, 0, 0, 38)
+	toggleFrame.BackgroundColor3 = THEME.Card
+	toggleFrame.Parent = self.Container
+	addCorner(toggleFrame, 8)
+
+	local iconOffset = createIcon(toggleFrame, iconName)
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, -(60 + iconOffset), 1, 0)
+	label.Position = UDim2.new(0, 10 + iconOffset, 0, 0)
+	label.Text = text
+	label.TextColor3 = THEME.Text
+	label.TextSize = 14
+	label.Font = Enum.Font.GothamMedium
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.BackgroundTransparency = 1
+	label.Parent = toggleFrame
+
+	local switchBG = Instance.new("Frame")
+	switchBG.Size = UDim2.new(0, 42, 0, 22)
+	switchBG.Position = UDim2.new(1, -52, 0.5, -11)
+	switchBG.BackgroundColor3 = state and THEME.Accent or Color3.fromRGB(50, 50, 60)
+	switchBG.Parent = toggleFrame
+	addCorner(switchBG, 12)
+
+	local circle = Instance.new("Frame")
+	circle.Size = UDim2.new(0, 16, 0, 16)
+	circle.Position = state and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
+	circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	circle.Parent = switchBG
+	addCorner(circle, 10)
+
+	local clickBtn = Instance.new("TextButton")
+	clickBtn.Size = UDim2.new(1, 0, 1, 0)
+	clickBtn.BackgroundTransparency = 1
+	clickBtn.Text = ""
+	clickBtn.Parent = toggleFrame
+
+	clickBtn.MouseButton1Click:Connect(function()
+		state = not state
+		TweenService:Create(switchBG, TweenInfo.new(0.2), {BackgroundColor3 = state and THEME.Accent or Color3.fromRGB(50, 50, 60)}):Play()
+		TweenService:Create(circle, TweenInfo.new(0.2), {Position = state and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)}):Play()
+		if callback then callback(state) end
 	end)
 end
 
