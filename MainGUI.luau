@@ -19,13 +19,14 @@ if not success then
 end
 
 local THEME = {
-	Background = Color3.fromRGB(24, 24, 28),
-	Header = Color3.fromRGB(30, 30, 36),
-	Card = Color3.fromRGB(34, 34, 40),
-	Button = Color3.fromRGB(45, 45, 54),
-	ButtonHover = Color3.fromRGB(58, 58, 70),
+	Background = Color3.fromRGB(20, 20, 24),
+	Header = Color3.fromRGB(28, 28, 34),
+	Card = Color3.fromRGB(32, 32, 38),
+	Button = Color3.fromRGB(42, 42, 52),
+	ButtonHover = Color3.fromRGB(54, 54, 66),
 	Accent = Color3.fromRGB(114, 137, 218),
 	Text = Color3.fromRGB(240, 240, 245),
+	SubText = Color3.fromRGB(150, 150, 165),
 }
 
 local function addCorner(parent, radius)
@@ -35,12 +36,11 @@ local function addCorner(parent, radius)
 	return corner
 end
 
--- Создание иконки через Footagesus Icons API
 local function createIcon(parent, iconName)
 	if not iconName or type(iconName) ~= "string" or not Icons then return 0 end
 
 	local iconImage = nil
-	local getSuccess = pcall(function()
+	pcall(function()
 		if typeof(Icons.GetIcon) == "function" then
 			iconImage = Icons.GetIcon(iconName)
 		elseif typeof(Icons.CreateIcon) == "function" then
@@ -48,7 +48,7 @@ local function createIcon(parent, iconName)
 		end
 	end)
 
-	if getSuccess and iconImage then
+	if iconImage then
 		local iconLabel = Instance.new("ImageLabel")
 		iconLabel.Name = "Icon"
 		iconLabel.Size = UDim2.new(0, 18, 0, 18)
@@ -80,6 +80,19 @@ function AtheriumGUI.CreateWindow(titleText)
 	screenGui.ResetOnSpawn = false
 	screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
+	-- Контейнер для уведомлений
+	local notifHolder = Instance.new("Frame")
+	notifHolder.Name = "NotifHolder"
+	notifHolder.Size = UDim2.new(0, 260, 1, -20)
+	notifHolder.Position = UDim2.new(1, -270, 0, 10)
+	notifHolder.BackgroundTransparency = 1
+	notifHolder.Parent = screenGui
+
+	local notifLayout = Instance.new("UIListLayout")
+	notifLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+	notifLayout.Padding = UDim.new(0, 8)
+	notifLayout.Parent = notifHolder
+
 	local mainFrame = Instance.new("Frame")
 	mainFrame.Name = "MainFrame"
 	mainFrame.Size = UDim2.new(0, 480, 0, 340)
@@ -91,7 +104,7 @@ function AtheriumGUI.CreateWindow(titleText)
 	addCorner(mainFrame, 12)
 
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(50, 50, 60)
+	stroke.Color = Color3.fromRGB(45, 45, 55)
 	stroke.Thickness = 1.5
 	stroke.Parent = mainFrame
 
@@ -108,7 +121,7 @@ function AtheriumGUI.CreateWindow(titleText)
 	title.Position = UDim2.new(0, 15, 0, 0)
 	title.Text = titleText or "Atherium Hub"
 	title.TextColor3 = THEME.Text
-	title.TextSize = 16
+	title.TextSize = 15
 	title.Font = Enum.Font.GothamBold
 	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.BackgroundTransparency = 1
@@ -138,7 +151,7 @@ function AtheriumGUI.CreateWindow(titleText)
 		container.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 10)
 	end)
 
-	-- Логика перетаскивания (Drag)
+	-- Drag Logic
 	local dragging, dragStart, startPos
 	header.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -162,10 +175,58 @@ function AtheriumGUI.CreateWindow(titleText)
 	end)
 
 	self.Container = container
+	self.NotifHolder = notifHolder
 	return self
 end
 
--- Кнопка
+-- Система нотификаций
+function AtheriumGUI:Notify(titleText, descText, duration)
+	duration = duration or 3
+	local notif = Instance.new("Frame")
+	notif.Size = UDim2.new(1, 0, 0, 50)
+	notif.BackgroundColor3 = THEME.Header
+	notif.BackgroundTransparency = 0.1
+	notif.Parent = self.NotifHolder
+	addCorner(notif, 8)
+
+	local nStroke = Instance.new("UIStroke")
+	nStroke.Color = THEME.Accent
+	nStroke.Thickness = 1
+	nStroke.Parent = notif
+
+	local titleLabel = Instance.new("TextLabel")
+	titleLabel.Size = UDim2.new(1, -20, 0, 20)
+	titleLabel.Position = UDim2.new(0, 10, 0, 6)
+	titleLabel.Text = titleText
+	titleLabel.TextColor3 = THEME.Text
+	titleLabel.TextSize = 13
+	titleLabel.Font = Enum.Font.GothamBold
+	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	titleLabel.BackgroundTransparency = 1
+	titleLabel.Parent = notif
+
+	local descLabel = Instance.new("TextLabel")
+	descLabel.Size = UDim2.new(1, -20, 0, 18)
+	descLabel.Position = UDim2.new(0, 10, 0, 24)
+	descLabel.Text = descText
+	descLabel.TextColor3 = THEME.SubText
+	descLabel.TextSize = 12
+	descLabel.Font = Enum.Font.Gotham
+	descLabel.TextXAlignment = Enum.TextXAlignment.Left
+	descLabel.BackgroundTransparency = 1
+	descLabel.Parent = notif
+
+	task.delay(duration, function()
+		TweenService:Create(notif, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
+		TweenService:Create(titleLabel, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
+		TweenService:Create(descLabel, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
+		TweenService:Create(nStroke, TweenInfo.new(0.3), {Transparency = 1}):Play()
+		task.wait(0.3)
+		notif:Destroy()
+	end)
+end
+
+-- Кнопка с эффектом Click/Hover
 function AtheriumGUI:AddButton(text, iconName, callback)
 	if type(iconName) == "function" then
 		callback = iconName
@@ -187,24 +248,28 @@ function AtheriumGUI:AddButton(text, iconName, callback)
 	label.Position = UDim2.new(0, 10 + iconOffset, 0, 0)
 	label.Text = text
 	label.TextColor3 = THEME.Text
-	label.TextSize = 14
+	label.TextSize = 13
 	label.Font = Enum.Font.GothamMedium
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.BackgroundTransparency = 1
 	label.Parent = button
 
 	button.MouseEnter:Connect(function()
-		TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = THEME.ButtonHover}):Play()
+		TweenService:Create(button, TweenInfo.new(0.15), {BackgroundColor3 = THEME.ButtonHover}):Play()
 	end)
 	button.MouseLeave:Connect(function()
-		TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = THEME.Button}):Play()
+		TweenService:Create(button, TweenInfo.new(0.15), {BackgroundColor3 = THEME.Button}):Play()
 	end)
-	button.MouseButton1Click:Connect(function()
+	button.MouseButton1Down:Connect(function()
+		TweenService:Create(button, TweenInfo.new(0.08), {Size = UDim2.new(0.98, 0, 0, 36)}):Play()
+	end)
+	button.MouseButton1Up:Connect(function()
+		TweenService:Create(button, TweenInfo.new(0.08), {Size = UDim2.new(1, 0, 0, 38)}):Play()
 		if callback then callback() end
 	end)
 end
 
--- Тогл (Переключатель)
+-- Тоггл
 function AtheriumGUI:AddToggle(text, iconName, defaultState, callback)
 	if type(iconName) == "boolean" then
 		callback = defaultState
@@ -226,25 +291,25 @@ function AtheriumGUI:AddToggle(text, iconName, defaultState, callback)
 	label.Position = UDim2.new(0, 10 + iconOffset, 0, 0)
 	label.Text = text
 	label.TextColor3 = THEME.Text
-	label.TextSize = 14
+	label.TextSize = 13
 	label.Font = Enum.Font.GothamMedium
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.BackgroundTransparency = 1
 	label.Parent = toggleFrame
 
 	local switchBG = Instance.new("Frame")
-	switchBG.Size = UDim2.new(0, 42, 0, 22)
-	switchBG.Position = UDim2.new(1, -52, 0.5, -11)
+	switchBG.Size = UDim2.new(0, 40, 0, 20)
+	switchBG.Position = UDim2.new(1, -50, 0.5, -10)
 	switchBG.BackgroundColor3 = state and THEME.Accent or Color3.fromRGB(50, 50, 60)
 	switchBG.Parent = toggleFrame
-	addCorner(switchBG, 12)
+	addCorner(switchBG, 10)
 
 	local circle = Instance.new("Frame")
-	circle.Size = UDim2.new(0, 16, 0, 16)
-	circle.Position = state and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
+	circle.Size = UDim2.new(0, 14, 0, 14)
+	circle.Position = state and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7)
 	circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	circle.Parent = switchBG
-	addCorner(circle, 10)
+	addCorner(circle, 8)
 
 	local clickBtn = Instance.new("TextButton")
 	clickBtn.Size = UDim2.new(1, 0, 1, 0)
@@ -255,8 +320,95 @@ function AtheriumGUI:AddToggle(text, iconName, defaultState, callback)
 	clickBtn.MouseButton1Click:Connect(function()
 		state = not state
 		TweenService:Create(switchBG, TweenInfo.new(0.2), {BackgroundColor3 = state and THEME.Accent or Color3.fromRGB(50, 50, 60)}):Play()
-		TweenService:Create(circle, TweenInfo.new(0.2), {Position = state and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)}):Play()
+		TweenService:Create(circle, TweenInfo.new(0.2), {Position = state and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7)}):Play()
 		if callback then callback(state) end
+	end)
+end
+
+-- Новый элемент: Слайдер (Slider)
+function AtheriumGUI:AddSlider(text, iconName, minVal, maxVal, defaultVal, callback)
+	if type(iconName) == "number" then
+		callback = defaultVal
+		defaultVal = maxVal
+		maxVal = minVal
+		minVal = iconName
+		iconName = nil
+	end
+
+	minVal = minVal or 0
+	maxVal = maxVal or 100
+	defaultVal = math.clamp(defaultVal or minVal, minVal, maxVal)
+
+	local sliderFrame = Instance.new("Frame")
+	sliderFrame.Size = UDim2.new(1, 0, 0, 48)
+	sliderFrame.BackgroundColor3 = THEME.Card
+	sliderFrame.Parent = self.Container
+	addCorner(sliderFrame, 8)
+
+	local iconOffset = createIcon(sliderFrame, iconName)
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, -(70 + iconOffset), 0, 22)
+	label.Position = UDim2.new(0, 10 + iconOffset, 0, 4)
+	label.Text = text
+	label.TextColor3 = THEME.Text
+	label.TextSize = 13
+	label.Font = Enum.Font.GothamMedium
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.BackgroundTransparency = 1
+	label.Parent = sliderFrame
+
+	local valueLabel = Instance.new("TextLabel")
+	valueLabel.Size = UDim2.new(0, 50, 0, 22)
+	valueLabel.Position = UDim2.new(1, -60, 0, 4)
+	valueLabel.Text = tostring(defaultVal)
+	valueLabel.TextColor3 = THEME.SubText
+	valueLabel.TextSize = 12
+	valueLabel.Font = Enum.Font.Gotham
+	valueLabel.TextXAlignment = Enum.TextXAlignment.Right
+	valueLabel.BackgroundTransparency = 1
+	valueLabel.Parent = sliderFrame
+
+	local track = Instance.new("Frame")
+	track.Size = UDim2.new(1, -20, 0, 6)
+	track.Position = UDim2.new(0, 10, 1, -14)
+	track.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+	track.Parent = sliderFrame
+	addCorner(track, 3)
+
+	local fill = Instance.new("Frame")
+	fill.Size = UDim2.new((defaultVal - minVal) / (maxVal - minVal), 0, 1, 0)
+	fill.BackgroundColor3 = THEME.Accent
+	fill.Parent = track
+	addCorner(fill, 3)
+
+	local isSliding = false
+
+	local function updateSlider(input)
+		local percent = math.clamp((input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
+		local value = math.floor(minVal + (maxVal - minVal) * percent)
+		fill.Size = UDim2.new(percent, 0, 1, 0)
+		valueLabel.Text = tostring(value)
+		if callback then callback(value) end
+	end
+
+	sliderFrame.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			isSliding = true
+			updateSlider(input)
+		end
+	end)
+
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			isSliding = false
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if isSliding and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			updateSlider(input)
+		end
 	end)
 end
 
